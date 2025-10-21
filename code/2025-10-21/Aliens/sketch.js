@@ -73,24 +73,29 @@ function draw() {
           let objX = (xPositions[i] + xPositions[j]) / 2 - width/2;
           let objY = (values[i] + values[j]) / 2 - height/2;
           
+          // Random type: 0=planet, 1=plant, 2=building
+          let objType = floor(random(3));
+          
           objects3D.push({
             x: objX,
             y: objY,
-            z: random(-200, 200),
+            z: random(-300, 300),
             size: 0,
-            targetSize: random(30, 100),
-            type: floor(random(5)), // Different 3D shapes
+            targetSize: random(40, 120),
+            type: objType,
+            subType: floor(random(3)), // Variation within each type
             color1: trails[i].color,
             color2: trails[j].color,
             rotationX: random(TWO_PI),
             rotationY: random(TWO_PI),
             rotationZ: random(TWO_PI),
-            rotSpeedX: random(-0.02, 0.02),
-            rotSpeedY: random(-0.02, 0.02),
-            rotSpeedZ: random(-0.02, 0.02),
+            rotSpeedX: random(-0.01, 0.01),
+            rotSpeedY: random(-0.01, 0.01),
+            rotSpeedZ: random(-0.01, 0.01),
             growSpeed: random(0.5, 2),
             floatPhase: random(TWO_PI),
-            floatSpeed: random(0.01, 0.03)
+            floatSpeed: random(0.01, 0.03),
+            detail: floor(random(3, 8)) // For planet craters, plant details, etc
           });
           
           // Increase background brightness with each object
@@ -195,8 +200,9 @@ function drawTrails() {
 
 function draw3DObjects() {
   // Enable lighting for 3D objects
-  ambientLight(100);
-  pointLight(255, 255, 255, 0, 0, 200);
+  ambientLight(80);
+  pointLight(255, 255, 255, 200, -200, 300);
+  pointLight(150, 150, 200, -200, 200, 200);
   
   for (let i = objects3D.length - 1; i >= 0; i--) {
     let obj = objects3D[i];
@@ -221,41 +227,233 @@ function draw3DObjects() {
     rotateY(obj.rotationY);
     rotateZ(obj.rotationZ);
     
-    // Set material colors (alternate between two collision colors)
-    if (frameCount % 60 < 30) {
-      ambientMaterial(obj.color1);
+    // Draw based on type
+    if (obj.type === 0) {
+      drawPlanet(obj);
+    } else if (obj.type === 1) {
+      drawAlienPlant(obj);
     } else {
-      ambientMaterial(obj.color2);
-    }
-    
-    // Add emissive glow
-    emissiveMaterial(
-      red(obj.color1) * 0.3,
-      green(obj.color1) * 0.3,
-      blue(obj.color1) * 0.3
-    );
-    
-    // Draw different 3D shapes
-    switch(obj.type) {
-      case 0: // Box
-        box(obj.size);
-        break;
-      case 1: // Sphere
-        sphere(obj.size / 2);
-        break;
-      case 2: // Torus
-        torus(obj.size / 2, obj.size / 4);
-        break;
-      case 3: // Cone
-        cone(obj.size / 2, obj.size);
-        break;
-      case 4: // Cylinder
-        cylinder(obj.size / 2, obj.size);
-        break;
+      drawBuilding(obj);
     }
     
     pop();
   }
+}
+
+function drawPlanet(obj) {
+  // Main planet sphere
+  push();
+  
+  // Alternate between colors
+  if (frameCount % 60 < 30) {
+    ambientMaterial(obj.color1);
+  } else {
+    ambientMaterial(obj.color2);
+  }
+  
+  emissiveMaterial(
+    red(obj.color1) * 0.2,
+    green(obj.color1) * 0.2,
+    blue(obj.color1) * 0.2
+  );
+  
+  sphere(obj.size / 2, 24, 16);
+  pop();
+  
+  // Add rings (like Saturn) for some planets
+  if (obj.subType === 0) {
+    push();
+    rotateX(PI / 4);
+    noFill();
+    stroke(red(obj.color2), green(obj.color2), blue(obj.color2), 150);
+    strokeWeight(3);
+    ellipse(0, 0, obj.size * 1.5, obj.size * 0.3);
+    strokeWeight(2);
+    ellipse(0, 0, obj.size * 1.8, obj.size * 0.4);
+    pop();
+  }
+  
+  // Add moons
+  if (obj.subType === 1) {
+    for (let i = 0; i < 2; i++) {
+      push();
+      rotateY(frameCount * 0.01 + i * PI);
+      translate(obj.size * 0.8, 0, 0);
+      ambientMaterial(obj.color2);
+      sphere(obj.size / 8);
+      pop();
+    }
+  }
+  
+  // Add craters for rocky planets
+  if (obj.subType === 2) {
+    noStroke();
+    fill(red(obj.color1) * 0.7, green(obj.color1) * 0.7, blue(obj.color1) * 0.7);
+    for (let i = 0; i < obj.detail; i++) {
+      push();
+      rotateY(i * 0.7);
+      rotateX(i * 0.5);
+      translate(0, 0, obj.size / 2.2);
+      sphere(obj.size / 10);
+      pop();
+    }
+  }
+}
+
+function drawAlienPlant(obj) {
+  push();
+  
+  // Plant stem/trunk
+  ambientMaterial(
+    red(obj.color1) * 0.5 + 50,
+    green(obj.color1) * 0.8 + 100,
+    blue(obj.color1) * 0.5 + 50
+  );
+  
+  if (obj.subType === 0) {
+    // Spiral tendril plant
+    noFill();
+    stroke(obj.color1);
+    strokeWeight(4);
+    beginShape();
+    for (let i = 0; i < 50; i++) {
+      let angle = i * 0.3;
+      let radius = i * 0.5;
+      let x = cos(angle) * radius;
+      let z = sin(angle) * radius;
+      let y = -i * 2;
+      vertex(x, y, z);
+    }
+    endShape();
+    
+    // Glowing bulbs at end
+    for (let i = 0; i < 3; i++) {
+      push();
+      translate(cos(15 + i) * 25, -100 - i * 10, sin(15 + i) * 25);
+      ambientMaterial(obj.color2);
+      emissiveMaterial(red(obj.color2) * 0.5, green(obj.color2) * 0.5, blue(obj.color2) * 0.5);
+      sphere(obj.size / 8);
+      pop();
+    }
+    
+  } else if (obj.subType === 1) {
+    // Mushroom-like structure
+    cylinder(obj.size / 8, obj.size);
+    
+    push();
+    translate(0, -obj.size / 2, 0);
+    ambientMaterial(obj.color2);
+    emissiveMaterial(red(obj.color2) * 0.3, green(obj.color2) * 0.3, blue(obj.color2) * 0.3);
+    cone(obj.size / 1.5, obj.size / 2);
+    
+    // Spots on mushroom cap
+    for (let i = 0; i < obj.detail; i++) {
+      push();
+      rotateY(i * 0.8);
+      translate(obj.size / 4, -obj.size / 6, 0);
+      ambientMaterial(obj.color1);
+      sphere(obj.size / 15);
+      pop();
+    }
+    pop();
+    
+  } else {
+    // Crystalline plant with multiple branches
+    for (let i = 0; i < 5; i++) {
+      push();
+      rotateY((TWO_PI / 5) * i);
+      rotateZ(PI / 6);
+      ambientMaterial(obj.color2);
+      emissiveMaterial(red(obj.color2) * 0.4, green(obj.color2) * 0.4, blue(obj.color2) * 0.4);
+      cone(obj.size / 10, obj.size / 1.5);
+      
+      // Smaller crystals
+      translate(0, -obj.size / 3, 0);
+      rotateZ(PI / 4);
+      cone(obj.size / 15, obj.size / 3);
+      pop();
+    }
+  }
+  
+  pop();
+}
+
+function drawBuilding(obj) {
+  push();
+  
+  ambientMaterial(obj.color1);
+  
+  if (obj.subType === 0) {
+    // Skyscraper
+    box(obj.size / 3, obj.size * 1.5, obj.size / 3);
+    
+    // Windows
+    for (let i = 0; i < 8; i++) {
+      push();
+      translate(0, -obj.size * 0.7 + i * (obj.size * 0.2), obj.size / 3.1);
+      emissiveMaterial(255, 255, 200);
+      box(obj.size / 4, obj.size / 10, 1);
+      pop();
+    }
+    
+    // Antenna on top
+    push();
+    translate(0, -obj.size * 0.8, 0);
+    ambientMaterial(obj.color2);
+    cylinder(obj.size / 20, obj.size / 3);
+    translate(0, -obj.size / 4, 0);
+    emissiveMaterial(255, 0, 0);
+    sphere(obj.size / 15);
+    pop();
+    
+  } else if (obj.subType === 1) {
+    // Dome structure
+    ambientMaterial(obj.color2);
+    emissiveMaterial(red(obj.color2) * 0.3, green(obj.color2) * 0.3, blue(obj.color2) * 0.3);
+    sphere(obj.size / 2, 16, 8);
+    
+    // Base platform
+    push();
+    translate(0, obj.size / 4, 0);
+    ambientMaterial(obj.color1);
+    cylinder(obj.size / 1.5, obj.size / 8);
+    pop();
+    
+    // Entry rings
+    for (let i = 0; i < 3; i++) {
+      push();
+      rotateY((TWO_PI / 3) * i);
+      translate(obj.size / 2, 0, 0);
+      ambientMaterial(obj.color2);
+      torus(obj.size / 10, obj.size / 30);
+      pop();
+    }
+    
+  } else {
+    // Pyramid/Obelisk
+    push();
+    translate(0, obj.size / 3, 0);
+    ambientMaterial(obj.color1);
+    cone(obj.size / 1.5, obj.size * 1.2, 4);
+    
+    // Glowing top
+    translate(0, -obj.size * 0.7, 0);
+    emissiveMaterial(red(obj.color2), green(obj.color2), blue(obj.color2));
+    sphere(obj.size / 8);
+    
+    // Energy beams
+    stroke(obj.color2);
+    strokeWeight(2);
+    for (let i = 0; i < 4; i++) {
+      push();
+      rotateY((TWO_PI / 4) * i);
+      line(0, 0, 0, 0, obj.size / 2, obj.size / 2);
+      pop();
+    }
+    pop();
+  }
+  
+  pop();
 }
 
 function windowResized() {
