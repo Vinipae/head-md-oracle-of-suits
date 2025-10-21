@@ -32,8 +32,8 @@ function setup() {
 function playHugSound() {
   // Create a simple beep sound using Web Audio API
   let osc = new p5.Oscillator('sine');
-  osc.freq(800); // High pitch
-  osc.amp(0.3);
+  osc.freq(2000); // High pitch
+  osc.amp(0.6, 0.05);
   osc.start();
   
   // Quick fade out
