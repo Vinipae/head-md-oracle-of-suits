@@ -1,459 +1,678 @@
 // create an empty array
-let values = [];
-let xPositions = [];
-let speeds = [];
-let screams = [];
-let trails = [];
+let aliens = [];
+let spaceships = [];
 let objects3D = [];
-let backgroundBrightness = 0;
+let cam;
 
-function preload() {
-  // Load sound if needed
-}
+// Audio
+let reverb, delay, bassOsc, leadSynth, padOsc, kickOsc, snareOsc, hihatOsc, arpOsc;
+let beatCounter = 0;
 
 function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL);
   
-  // Initialize spaceships FIRST
-  setupSpaceships();
+  // Setup camera
+  cam = createCamera();
+  cam.setPosition(0, 0, 1000);
   
-  // Initialize aliens - first 10 will be pilots, rest are free
-  for (let i = 0; i < 50; i++) {
-    values.push(random(height));
-    xPositions.push(random(width));
-    
-    let angle = random(TWO_PI);
-    let speed = random(0.5, 2);
-    speeds.push({
-      x: cos(angle) * speed,
-      y: sin(angle) * speed
-    });
-    screams.push(0);
-    
-    // Each alien/ship has its own drawing color
-    trails.push({
-      color: color(random(100, 255), random(100, 255), random(150, 255)),
-      history: [],
-      maxHistory: 50
-    });
+  // Setup audio
+  setupAudio();
+  
+  // Create 10 spaceships with pilots
+  for (let i = 0; i < 10; i++) {
+    spaceships.push(createSpaceship(true));
+  }
+  
+  // Create 40 free aliens
+  for (let i = 0; i < 40; i++) {
+    aliens.push(createAlien());
   }
   
   userStartAudio();
 }
 
 function draw() {
-  // Slowly brighten background as objects grow
-  backgroundBrightness = min(backgroundBrightness + 0.05, 50);
-  background(backgroundBrightness, backgroundBrightness * 0.3, backgroundBrightness * 0.5);
+  background(20);
   
-  // Reset to 2D for trails and sprites
+  // Rotate camera
+  let camX = sin(frameCount * 0.001) * 300;
+  let camY = cos(frameCount * 0.0007) * 200;
+  cam.setPosition(camX, camY, 1000);
+  cam.lookAt(0, 0, 0);
+  
+  // Lighting
+  ambientLight(100);
+  pointLight(255, 255, 255, 300, -300, 400);
+  pointLight(255, 200, 100, -300, 300, -400);
+  
+  // Update and draw spaceships
+  for (let ship of spaceships) {
+    updateSpaceship(ship);
+    drawSpaceship(ship);
+  }
+  
+  // Update and draw aliens
+  for (let alien of aliens) {
+    updateAlien(alien);
+    drawAlien(alien);
+  }
+  
+  // Check collisions and create objects
+  checkCollisions();
+  
+  // Draw created big aliens
+  for (let obj of objects3D) {
+    updateObject(obj);
+    drawBigAlien(obj);
+  }
+}
+
+function createAlien() {
+  return {
+    x: random(-width/2, width/2),
+    y: random(-height/2, height/2),
+    z: random(-400, 400),
+    vx: random(-2, 2),
+    vy: random(-2, 2),
+    vz: random(-2, 2),
+    happy: false,
+    happyTimer: 0
+  };
+}
+
+function createSpaceship(hasPilot) {
+  return {
+    x: random(-width/2, width/2),
+    y: random(-height/2, height/2),
+    z: random(-400, 400),
+    vx: random(-2, 2),
+    vy: random(-2, 2),
+    vz: random(-2, 2),
+    rotation: 0,
+    lightPhase: random(TWO_PI),
+    hasPilot: hasPilot
+  };
+}
+
+function updateAlien(alien) {
+  // Move
+  alien.x += alien.vx;
+  alien.y += alien.vy;
+  alien.z += alien.vz;
+  
+  // Wrap around
+  if (alien.x < -width/2) alien.x = width/2;
+  if (alien.x > width/2) alien.x = -width/2;
+  if (alien.y < -height/2) alien.y = height/2;
+  if (alien.y > height/2) alien.y = -height/2;
+  if (alien.z < -500) alien.z = 500;
+  if (alien.z > 500) alien.z = -500;
+  
+  // Update happiness
+  if (alien.happyTimer > 0) alien.happyTimer--;
+  else alien.happy = false;
+}
+
+function updateSpaceship(ship) {
+  // Move
+  ship.x += ship.vx;
+  ship.y += ship.vy;
+  ship.z += ship.vz;
+  
+  // Wrap around
+  if (ship.x < -width/2) ship.x = width/2;
+  if (ship.x > width/2) ship.x = -width/2;
+  if (ship.y < -height/2) ship.y = height/2;
+  if (ship.y > height/2) ship.y = -height/2;
+  if (ship.z < -500) ship.z = 500;
+  if (ship.z > 500) ship.z = -500;
+  
+  // Rotate
+  ship.rotation += 0.02;
+  ship.lightPhase += 0.05;
+}
+
+function drawAlien(alien) {
   push();
-  translate(-width/2, -height/2);
+  translate(alien.x, alien.y, alien.z);
   
-  // Draw trails from aliens and spaceships
-  drawTrails();
+  // Body
+  noStroke();
+  ambientMaterial(0, 255, 80);
+  sphere(8);
   
+  // Head
+  push();
+  translate(0, -12, 0);
+  sphere(10);
+  
+  // Eyes
+  push();
+  translate(-3, 0, 8);
+  ambientMaterial(255);
+  sphere(2.5);
+  translate(0, 0, 2);
+  ambientMaterial(0);
+  sphere(1.5);
   pop();
   
-  // Draw 3D objects
-  draw3DObjects();
-  
-  // Back to 2D for aliens and spaceships
   push();
-  translate(-width/2, -height/2);
+  translate(3, 0, 8);
+  ambientMaterial(255);
+  sphere(2.5);
+  translate(0, 0, 2);
+  ambientMaterial(0);
+  sphere(1.5);
+  pop();
   
-  // Check collisions between all aliens
-  for (let i = 0; i < values.length; i++) {
-    for (let j = i + 1; j < values.length; j++) {
-      if (checkCollision(i, j)) {
-        if (screams[i] === 0 && screams[j] === 0) {
-          playHugSound();
-          
-          // Create a 3D object at collision point
-          let objX = (xPositions[i] + xPositions[j]) / 2 - width/2;
-          let objY = (values[i] + values[j]) / 2 - height/2;
-          
-          // Random type: 0=planet, 1=plant, 2=building
-          let objType = floor(random(3));
-          
-          objects3D.push({
-            x: objX,
-            y: objY,
-            z: random(-300, 300),
-            size: 0,
-            targetSize: random(40, 120),
-            type: objType,
-            subType: floor(random(3)), // Variation within each type
-            color1: trails[i].color,
-            color2: trails[j].color,
-            rotationX: random(TWO_PI),
-            rotationY: random(TWO_PI),
-            rotationZ: random(TWO_PI),
-            rotSpeedX: random(-0.01, 0.01),
-            rotSpeedY: random(-0.01, 0.01),
-            rotSpeedZ: random(-0.01, 0.01),
-            growSpeed: random(0.5, 2),
-            floatPhase: random(TWO_PI),
-            floatSpeed: random(0.01, 0.03),
-            detail: floor(random(3, 8)) // For planet craters, plant details, etc
-          });
-          
-          // Increase background brightness with each object
-          backgroundBrightness += 2;
-        }
+  // Mouth
+  if (alien.happy) {
+    push();
+    translate(0, 3, 8);
+    ambientMaterial(100, 50, 50);
+    sphere(2);
+    pop();
+  }
+  
+  // Antennas
+  stroke(0, 255, 80);
+  strokeWeight(1.5);
+  line(-2, -10, 0, -4, -18, 0);
+  line(2, -10, 0, 4, -18, 0);
+  
+  noStroke();
+  push();
+  translate(-4, -18, 0);
+  emissiveMaterial(0, 255, 100);
+  sphere(2);
+  pop();
+  
+  push();
+  translate(4, -18, 0);
+  emissiveMaterial(0, 255, 100);
+  sphere(2);
+  pop();
+  
+  pop();
+  pop();
+}
+
+function drawSpaceship(ship) {
+  push();
+  translate(ship.x, ship.y, ship.z);
+  rotateY(ship.rotation);
+  
+  noStroke();
+  
+  // Saucer body
+  ambientMaterial(150, 150, 180);
+  push();
+  scale(1, 0.3, 1);
+  sphere(25);
+  pop();
+  
+  // Cockpit
+  push();
+  translate(0, -8, 0);
+  ambientMaterial(120, 140, 160);
+  sphere(12);
+  
+  // Pilot
+  if (ship.hasPilot) {
+    ambientMaterial(0, 255, 80);
+    sphere(5);
+  }
+  pop();
+  
+  // Lights
+  for (let i = 0; i < 8; i++) {
+    let angle = (TWO_PI / 8) * i + ship.lightPhase;
+    let glow = sin(ship.lightPhase + i) * 0.5 + 0.5;
+    
+    push();
+    rotateY(angle);
+    translate(22, 0, 0);
+    emissiveMaterial(255 * glow, 50 * glow, 50 * glow);
+    sphere(2);
+    pop();
+  }
+  
+  pop();
+}
+
+function checkCollisions() {
+  // Check alien collisions
+  for (let i = 0; i < aliens.length; i++) {
+    for (let j = i + 1; j < aliens.length; j++) {
+      let d = dist(aliens[i].x, aliens[i].y, aliens[i].z, 
+                   aliens[j].x, aliens[j].y, aliens[j].z);
+      
+      if (d < 30 && !aliens[i].happy && !aliens[j].happy) {
+        // Collision!
+        aliens[i].happy = true;
+        aliens[j].happy = true;
+        aliens[i].happyTimer = 30;
+        aliens[j].happyTimer = 30;
         
-        // Bounce off each other
-        let angle = atan2(values[j] - values[i], xPositions[j] - xPositions[i]);
-        let speed1 = sqrt(speeds[i].x * speeds[i].x + speeds[i].y * speeds[i].y);
-        let speed2 = sqrt(speeds[j].x * speeds[j].x + speeds[j].y * speeds[j].y);
+        // Bounce
+        let temp = aliens[i].vx;
+        aliens[i].vx = aliens[j].vx;
+        aliens[j].vx = temp;
         
-        speeds[i].x = cos(angle + PI) * speed1;
-        speeds[i].y = sin(angle + PI) * speed1;
-        speeds[j].x = cos(angle) * speed2;
-        speeds[j].y = sin(angle) * speed2;
+        temp = aliens[i].vy;
+        aliens[i].vy = aliens[j].vy;
+        aliens[j].vy = temp;
         
-        screams[i] = 30;
-        screams[j] = 30;
+        temp = aliens[i].vz;
+        aliens[i].vz = aliens[j].vz;
+        aliens[j].vz = temp;
+        
+        // Create big alien
+        createBigAlien(
+          (aliens[i].x + aliens[j].x) / 2,
+          (aliens[i].y + aliens[j].y) / 2,
+          (aliens[i].z + aliens[j].z) / 2
+        );
+        
+        playCollisionSound();
       }
     }
   }
-  
-  // Update and draw free-floating aliens (not pilots)
-  for (let i = 10; i < values.length; i++) {
-    // Store position in history for trails
-    trails[i].history.push({x: xPositions[i], y: values[i]});
-    if (trails[i].history.length > trails[i].maxHistory) {
-      trails[i].history.shift();
-    }
-    
-    xPositions[i] += speeds[i].x;
-    values[i] += speeds[i].y;
-    
-    // Wrap around screen edges
-    if (xPositions[i] < -50) {
-      xPositions[i] = width + 50;
-      trails[i].history = [];
-    }
-    if (xPositions[i] > width + 50) {
-      xPositions[i] = -50;
-      trails[i].history = [];
-    }
-    if (values[i] < -50) {
-      values[i] = height + 50;
-      trails[i].history = [];
-    }
-    if (values[i] > height + 50) {
-      values[i] = -50;
-      trails[i].history = [];
-    }
-    
-    if (screams[i] > 0) {
-      screams[i]--;
-    }
-    
-    push();
-    translate(xPositions[i], values[i]);
-    scale(0.6);
-    translate(-xPositions[i], -values[i]);
-    drawAlien(xPositions[i], values[i], screams[i] > 0);
-    pop();
-  }
-  
-  // Draw spaceships with pilots
-  drawSpaceships();
-  
-  pop();
 }
 
-function drawTrails() {
-  // Draw beautiful flowing trails
-  for (let i = 0; i < trails.length; i++) {
-    let trail = trails[i];
-    
-    if (trail.history.length > 1) {
-      noFill();
-      
-      // Draw gradient trail
-      for (let j = 0; j < trail.history.length - 1; j++) {
-        let alpha = map(j, 0, trail.history.length, 0, 100);
-        let thickness = map(j, 0, trail.history.length, 1, 4);
-        
-        stroke(red(trail.color), green(trail.color), blue(trail.color), alpha);
-        strokeWeight(thickness);
-        
-        let p1 = trail.history[j];
-        let p2 = trail.history[j + 1];
-        line(p1.x, p1.y, p2.x, p2.y);
-      }
-      
-      // Draw glowing dots along trail
-      for (let j = 0; j < trail.history.length; j += 5) {
-        let alpha = map(j, 0, trail.history.length, 50, 150);
-        fill(red(trail.color), green(trail.color), blue(trail.color), alpha);
-        noStroke();
-        let p = trail.history[j];
-        ellipse(p.x, p.y, 3, 3);
-      }
-    }
-  }
+function createBigAlien(x, y, z) {
+  objects3D.push({
+    x: x,
+    y: y,
+    z: z,
+    vx: random(-0.3, 0.3), // Even slower movement to stay in view longer
+    vy: random(-0.3, 0.3),
+    vz: random(-0.2, 0.2), // Less z movement
+    size: 0,
+    targetSize: random(60, 100), // Slightly bigger
+    rotation: random(TWO_PI),
+    rotSpeed: random(0.005, 0.015),
+    rotationY: random(TWO_PI),
+    rotationX: 0, // Start upright
+    rotationZ: 0,
+    rotSpeedY: random(-0.008, 0.008), // Only rotate mostly on Y axis for simpler movement
+    rotSpeedX: random(-0.002, 0.002), // Minimal X rotation
+    rotSpeedZ: random(-0.002, 0.002), // Minimal Z rotation
+    wobblePhase: random(TWO_PI),
+    wobbleSpeed: random(0.04, 0.08),
+    blinkPhase: random(100),
+    dancePhase: random(TWO_PI), // Add dancing motion
+    // More vibrant, crazy colors
+    bodyColor: color(random([255, 0, 100]), random([255, 0, 150]), random([255, 0, 200])),
+    headColor: color(random([255, 100, 0]), random([255, 150, 0]), random([255, 200, 0])),
+    eyeColor: color(random([0, 255, 200]), random([0, 255, 150]), random([0, 255, 255])),
+    glowColor: color(random(150, 255), random(0, 255), random(150, 255))
+  });
 }
 
-function draw3DObjects() {
-  // Enable lighting for 3D objects
-  ambientLight(80);
-  pointLight(255, 255, 255, 200, -200, 300);
-  pointLight(150, 150, 200, -200, 200, 200);
+function updateObject(obj) {
+  if (obj.size < obj.targetSize) {
+    obj.size += 2.5;
+  }
   
-  for (let i = objects3D.length - 1; i >= 0; i--) {
-    let obj = objects3D[i];
-    
-    // Grow the object
-    if (obj.size < obj.targetSize) {
-      obj.size += obj.growSpeed;
-    }
-    
-    // Float animation
-    obj.floatPhase += obj.floatSpeed;
-    let floatOffset = sin(obj.floatPhase) * 20;
-    
-    // Update rotation
-    obj.rotationX += obj.rotSpeedX;
-    obj.rotationY += obj.rotSpeedY;
-    obj.rotationZ += obj.rotSpeedZ;
-    
-    push();
-    translate(obj.x, obj.y, obj.z + floatOffset);
-    rotateX(obj.rotationX);
-    rotateY(obj.rotationY);
-    rotateZ(obj.rotationZ);
-    
-    // Draw based on type
-    if (obj.type === 0) {
-      drawPlanet(obj);
-    } else if (obj.type === 1) {
-      drawAlienPlant(obj);
-    } else {
-      drawBuilding(obj);
-    }
-    
-    pop();
-  }
+  // Move slower
+  obj.x += obj.vx;
+  obj.y += obj.vy;
+  obj.z += obj.vz;
+  
+  // Bounce back from edges instead of wrapping (keeps them visible longer)
+  if (obj.x < -width/2 || obj.x > width/2) obj.vx *= -1;
+  if (obj.y < -height/2 || obj.y > height/2) obj.vy *= -1;
+  if (obj.z < -400 || obj.z > 400) obj.vz *= -1;
+  
+  // Keep them closer to center
+  if (abs(obj.x) > width/3) obj.vx *= 0.98;
+  if (abs(obj.y) > height/3) obj.vy *= 0.98;
+  
+  // Update rotations - simpler, mostly Y axis
+  obj.rotation += obj.rotSpeed;
+  obj.rotationY += obj.rotSpeedY;
+  obj.rotationX += obj.rotSpeedX;
+  obj.rotationZ += obj.rotSpeedZ;
+  obj.wobblePhase += obj.wobbleSpeed;
+  obj.blinkPhase += 0.5;
+  obj.dancePhase += 0.06; // Dancing rhythm
 }
 
-function drawPlanet(obj) {
-  // Main planet sphere
+function drawBigAlien(obj) {
   push();
+  translate(obj.x, obj.y, obj.z);
   
-  // Alternate between colors
-  if (frameCount % 60 < 30) {
-    ambientMaterial(obj.color1);
-  } else {
-    ambientMaterial(obj.color2);
-  }
+  // Simpler rotation - mostly spinning on Y axis
+  rotateY(obj.rotationY);
+  rotateX(obj.rotationX * 0.3); // Reduced influence
+  rotateZ(obj.rotationZ * 0.3); // Reduced influence
   
-  emissiveMaterial(
-    red(obj.color1) * 0.2,
-    green(obj.color1) * 0.2,
-    blue(obj.color1) * 0.2
-  );
+  // Dancing motion - bobbing up and down
+  let danceY = sin(obj.dancePhase) * (obj.size / 10);
+  translate(0, danceY, 0);
   
-  sphere(obj.size / 2, 24, 16);
+  // Wobble and wiggle
+  let wobbleX = sin(obj.wobblePhase) * 0.1 + 1;
+  let wobbleY = cos(obj.wobblePhase * 1.3) * 0.08 + 1;
+  scale(wobbleX, wobbleY, 1);
+  
+  noStroke();
+  
+  // Big body with glow
+  ambientMaterial(obj.bodyColor);
+  emissiveMaterial(red(obj.bodyColor) * 0.5, green(obj.bodyColor) * 0.5, blue(obj.bodyColor) * 0.5);
+  sphere(obj.size / 3);
+  
+  // Add a glowing aura around body
+  push();
+  ambientMaterial(obj.glowColor);
+  emissiveMaterial(red(obj.glowColor) * 0.6, green(obj.glowColor) * 0.6, blue(obj.glowColor) * 0.6);
+  scale(1.1, 1.1, 1.1);
+  sphere(obj.size / 3.5);
   pop();
   
-  // Add rings (like Saturn) for some planets
-  if (obj.subType === 0) {
+  // Big head
+  push();
+  translate(0, -obj.size / 2.5, 0);
+  ambientMaterial(obj.headColor);
+  emissiveMaterial(red(obj.headColor) * 0.6, green(obj.headColor) * 0.6, blue(obj.headColor) * 0.6);
+  sphere(obj.size / 2.5);
+  
+  // Two big eyes with pupils
+  let blink = sin(obj.blinkPhase * 0.1) > 0.85 ? 0.2 : 1;
+  
+  push();
+  translate(-obj.size / 8, -obj.size / 12, obj.size / 3);
+  ambientMaterial(255);
+  emissiveMaterial(255, 255, 255);
+  sphere(obj.size / 10 * blink);
+  translate(0, 0, obj.size / 15);
+  ambientMaterial(obj.eyeColor);
+  emissiveMaterial(red(obj.eyeColor) * 0.8, green(obj.eyeColor) * 0.8, blue(obj.eyeColor) * 0.8);
+  // Moving pupils
+  let pupilX = sin(obj.rotation * 2) * (obj.size / 40);
+  let pupilY = cos(obj.rotation * 3) * (obj.size / 40);
+  translate(pupilX, pupilY, 0);
+  sphere(obj.size / 16);
+  pop();
+  
+  push();
+  translate(obj.size / 8, -obj.size / 12, obj.size / 3);
+  ambientMaterial(255);
+  emissiveMaterial(255, 255, 255);
+  sphere(obj.size / 10 * blink);
+  translate(0, 0, obj.size / 15);
+  ambientMaterial(obj.eyeColor);
+  emissiveMaterial(red(obj.eyeColor) * 0.8, green(obj.eyeColor) * 0.8, blue(obj.eyeColor) * 0.8);
+  translate(-pupilX, -pupilY, 0);
+  sphere(obj.size / 16);
+  pop();
+  
+  // Bigger, more visible smile
+  push();
+  translate(0, obj.size / 10, obj.size / 3);
+  
+  // Bright, colorful smile
+  ambientMaterial(obj.glowColor);
+  emissiveMaterial(red(obj.glowColor) * 0.7, green(obj.glowColor) * 0.7, blue(obj.glowColor) * 0.7);
+  
+  let smileRadius = obj.size / 5;
+  let numPoints = 9; // More points for fuller smile
+  for (let i = 0; i < numPoints; i++) {
+    let angle = map(i, 0, numPoints - 1, PI + 0.2, TWO_PI - 0.2);
+    let x = cos(angle) * smileRadius;
+    let y = sin(angle) * smileRadius * 0.6;
+    
     push();
-    rotateX(PI / 4);
-    noFill();
-    stroke(red(obj.color2), green(obj.color2), blue(obj.color2), 150);
-    strokeWeight(3);
-    ellipse(0, 0, obj.size * 1.5, obj.size * 0.3);
-    strokeWeight(2);
-    ellipse(0, 0, obj.size * 1.8, obj.size * 0.4);
+    translate(x, -y, 0);
+    sphere(obj.size / 35);
     pop();
   }
   
-  // Add moons
-  if (obj.subType === 1) {
-    for (let i = 0; i < 2; i++) {
-      push();
-      rotateY(frameCount * 0.01 + i * PI);
-      translate(obj.size * 0.8, 0, 0);
-      ambientMaterial(obj.color2);
-      sphere(obj.size / 8);
-      pop();
-    }
-  }
+  pop();
   
-  // Add craters for rocky planets
-  if (obj.subType === 2) {
-    noStroke();
-    fill(red(obj.color1) * 0.7, green(obj.color1) * 0.7, blue(obj.color1) * 0.7);
-    for (let i = 0; i < obj.detail; i++) {
-      push();
-      rotateY(i * 0.7);
-      rotateX(i * 0.5);
-      translate(0, 0, obj.size / 2.2);
-      sphere(obj.size / 10);
-      pop();
-    }
+  // Glowing antennas
+  stroke(red(obj.glowColor), green(obj.glowColor), blue(obj.glowColor));
+  strokeWeight(obj.size / 35);
+  line(-obj.size / 10, -obj.size / 2.5, 0, -obj.size / 6, -obj.size / 1.5, 0);
+  line(obj.size / 10, -obj.size / 2.5, 0, obj.size / 6, -obj.size / 1.5, 0);
+  
+  noStroke();
+  push();
+  translate(-obj.size / 6, -obj.size / 1.5, 0);
+  emissiveMaterial(red(obj.eyeColor) * 1.2, green(obj.eyeColor) * 1.2, blue(obj.eyeColor) * 1.2);
+  ambientMaterial(obj.eyeColor);
+  sphere(obj.size / 18);
+  pop();
+  
+  push();
+  translate(obj.size / 6, -obj.size / 1.5, 0);
+  emissiveMaterial(red(obj.eyeColor) * 1.2, green(obj.eyeColor) * 1.2, blue(obj.eyeColor) * 1.2);
+  ambientMaterial(obj.eyeColor);
+  sphere(obj.size / 18);
+  pop();
+  
+  pop();
+  
+  // Waving arms with color
+  stroke(red(obj.glowColor), green(obj.glowColor), blue(obj.glowColor));
+  strokeWeight(obj.size / 25);
+  let armWave = sin(obj.wobblePhase * 3) * (obj.size / 8); // More dramatic arm waving
+  line(-obj.size / 3, 0, 0, -obj.size / 1.8, obj.size / 4 + armWave, 0);
+  line(obj.size / 3, 0, 0, obj.size / 1.8, obj.size / 4 - armWave, 0);
+  
+  // Glowing hands
+  noStroke();
+  push();
+  translate(-obj.size / 1.8, obj.size / 4 + armWave, 0);
+  ambientMaterial(obj.glowColor);
+  emissiveMaterial(red(obj.glowColor) * 0.6, green(obj.glowColor) * 0.6, blue(obj.glowColor) * 0.6);
+  sphere(obj.size / 22);
+  pop();
+  
+  push();
+  translate(obj.size / 1.8, obj.size / 4 - armWave, 0);
+  ambientMaterial(obj.glowColor);
+  emissiveMaterial(red(obj.glowColor) * 0.6, green(obj.glowColor) * 0.6, blue(obj.glowColor) * 0.6);
+  sphere(obj.size / 22);
+  pop();
+  
+  // Colorful legs
+  stroke(red(obj.bodyColor), green(obj.bodyColor), blue(obj.bodyColor));
+  strokeWeight(obj.size / 28);
+  line(-obj.size / 8, obj.size / 3, 0, -obj.size / 6, obj.size / 1.5, 0);
+  line(obj.size / 8, obj.size / 3, 0, obj.size / 6, obj.size / 1.5, 0);
+  
+  // Glowing feet
+  noStroke();
+  push();
+  translate(-obj.size / 6, obj.size / 1.5, 0);
+  ambientMaterial(obj.glowColor);
+  emissiveMaterial(red(obj.glowColor) * 0.5, green(obj.glowColor) * 0.5, blue(obj.glowColor) * 0.5);
+  sphere(obj.size / 25);
+  pop();
+  
+  push();
+  translate(obj.size / 6, obj.size / 1.5, 0);
+  ambientMaterial(obj.glowColor);
+  emissiveMaterial(red(obj.glowColor) * 0.5, green(obj.glowColor) * 0.5, blue(obj.glowColor) * 0.5);
+  sphere(obj.size / 25);
+  pop();
+  
+  pop();
+}
+
+function setupAudio() {
+  // Create reverb and delay effects - shorter for techno
+  reverb = new p5.Reverb();
+  delay = new p5.Delay();
+  reverb.process(delay, 2, 1.5);
+  delay.process(reverb, 0.25, 0.4, 1800);
+  
+  // Techno bass - deeper and punchier
+  bassOsc = new p5.Oscillator('sawtooth');
+  bassOsc.amp(0);
+  bassOsc.freq(55);
+  bassOsc.start();
+  
+  // Techno pad - metallic sound
+  padOsc = new p5.Oscillator('square');
+  padOsc.amp(0);
+  padOsc.freq(220);
+  padOsc.start();
+  reverb.process(padOsc, 3, 1.5);
+  
+  // Lead synth - sharper for techno
+  leadSynth = new p5.Oscillator('sawtooth');
+  leadSynth.amp(0);
+  leadSynth.start();
+  reverb.process(leadSynth, 2, 1.5);
+  delay.process(leadSynth, 0.3, 0.5, 1800);
+  
+  // Arpeggiator synth
+  arpOsc = new p5.Oscillator('square');
+  arpOsc.amp(0);
+  arpOsc.start();
+  delay.process(arpOsc, 0.4, 0.6, 1500);
+  
+  // Kick drum - harder
+  kickOsc = new p5.Oscillator('sine');
+  kickOsc.amp(0);
+  kickOsc.start();
+  
+  // Snare/clap - sharper
+  snareOsc = new p5.Oscillator('noise');
+  snareOsc.amp(0);
+  snareOsc.start();
+  
+  // Hi-hat - faster
+  hihatOsc = new p5.Oscillator('noise');
+  hihatOsc.amp(0);
+  hihatOsc.start();
+  
+  // Faster techno beat - 140 BPM (428ms per beat)
+  setInterval(() => {
+    playTechnoKick();
+  }, 428);
+  
+  // Hi-hats (every 1/8 note)
+  setInterval(() => {
+    playTechnoHihat();
+  }, 214);
+  
+  // Bassline (every beat)
+  setInterval(() => {
+    playTechnoBass();
+  }, 428);
+  
+  // Arpeggiator (every 1/16 note)
+  setInterval(() => {
+    playArpeggio();
+  }, 107);
+  
+  // Lead synth stabs (every 4 beats)
+  setInterval(() => {
+    playTechnoLead();
+  }, 1712);
+  
+  // Pad swells (every 8 beats)
+  setInterval(() => {
+    playTechnoPad();
+  }, 3424);
+}
+
+function playTechnoKick() {
+  beatCounter++;
+  
+  // Hard four-on-the-floor kick
+  kickOsc.freq(180);
+  kickOsc.amp(0.4, 0.005);
+  kickOsc.freq(40, 0.08);
+  kickOsc.amp(0, 0.25);
+  
+  // Extra kick on beat 2 and 4
+  if (beatCounter % 4 === 2 || beatCounter % 4 === 0) {
+    snareOsc.amp(0.18, 0.005);
+    snareOsc.amp(0, 0.12);
   }
 }
 
-function drawAlienPlant(obj) {
-  push();
-  
-  // Plant stem/trunk
-  ambientMaterial(
-    red(obj.color1) * 0.5 + 50,
-    green(obj.color1) * 0.8 + 100,
-    blue(obj.color1) * 0.5 + 50
-  );
-  
-  if (obj.subType === 0) {
-    // Spiral tendril plant
-    noFill();
-    stroke(obj.color1);
-    strokeWeight(4);
-    beginShape();
-    for (let i = 0; i < 50; i++) {
-      let angle = i * 0.3;
-      let radius = i * 0.5;
-      let x = cos(angle) * radius;
-      let z = sin(angle) * radius;
-      let y = -i * 2;
-      vertex(x, y, z);
-    }
-    endShape();
-    
-    // Glowing bulbs at end
-    for (let i = 0; i < 3; i++) {
-      push();
-      translate(cos(15 + i) * 25, -100 - i * 10, sin(15 + i) * 25);
-      ambientMaterial(obj.color2);
-      emissiveMaterial(red(obj.color2) * 0.5, green(obj.color2) * 0.5, blue(obj.color2) * 0.5);
-      sphere(obj.size / 8);
-      pop();
-    }
-    
-  } else if (obj.subType === 1) {
-    // Mushroom-like structure
-    cylinder(obj.size / 8, obj.size);
-    
-    push();
-    translate(0, -obj.size / 2, 0);
-    ambientMaterial(obj.color2);
-    emissiveMaterial(red(obj.color2) * 0.3, green(obj.color2) * 0.3, blue(obj.color2) * 0.3);
-    cone(obj.size / 1.5, obj.size / 2);
-    
-    // Spots on mushroom cap
-    for (let i = 0; i < obj.detail; i++) {
-      push();
-      rotateY(i * 0.8);
-      translate(obj.size / 4, -obj.size / 6, 0);
-      ambientMaterial(obj.color1);
-      sphere(obj.size / 15);
-      pop();
-    }
-    pop();
-    
+function playTechnoHihat() {
+  // Fast hi-hats
+  if (beatCounter % 2 === 0) {
+    hihatOsc.amp(0.12, 0.005);
+    hihatOsc.amp(0, 0.06);
   } else {
-    // Crystalline plant with multiple branches
-    for (let i = 0; i < 5; i++) {
-      push();
-      rotateY((TWO_PI / 5) * i);
-      rotateZ(PI / 6);
-      ambientMaterial(obj.color2);
-      emissiveMaterial(red(obj.color2) * 0.4, green(obj.color2) * 0.4, blue(obj.color2) * 0.4);
-      cone(obj.size / 10, obj.size / 1.5);
-      
-      // Smaller crystals
-      translate(0, -obj.size / 3, 0);
-      rotateZ(PI / 4);
-      cone(obj.size / 15, obj.size / 3);
-      pop();
-    }
+    hihatOsc.amp(0.06, 0.005);
+    hihatOsc.amp(0, 0.04);
   }
-  
-  pop();
 }
 
-function drawBuilding(obj) {
-  push();
+function playTechnoBass() {
+  // Rolling techno bassline - E minor
+  let bassNotes = [82, 98, 110, 123, 110, 98, 82, 73]; // E2, G2, A2, B2, A2, G2, E2, D2
+  let note = bassNotes[beatCounter % 8];
   
-  ambientMaterial(obj.color1);
+  bassOsc.freq(note);
+  bassOsc.amp(0.35, 0.01);
+  bassOsc.amp(0.25, 0.3);
+}
+
+function playArpeggio() {
+  // Fast 16th note arpeggio - E minor scale
+  let arpNotes = [330, 392, 440, 494, 523, 494, 440, 392]; // E4, G4, A4, B4, C5, B4, A4, G4
+  let note = arpNotes[(beatCounter * 4) % 8];
   
-  if (obj.subType === 0) {
-    // Skyscraper
-    box(obj.size / 3, obj.size * 1.5, obj.size / 3);
-    
-    // Windows
-    for (let i = 0; i < 8; i++) {
-      push();
-      translate(0, -obj.size * 0.7 + i * (obj.size * 0.2), obj.size / 3.1);
-      emissiveMaterial(255, 255, 200);
-      box(obj.size / 4, obj.size / 10, 1);
-      pop();
-    }
-    
-    // Antenna on top
-    push();
-    translate(0, -obj.size * 0.8, 0);
-    ambientMaterial(obj.color2);
-    cylinder(obj.size / 20, obj.size / 3);
-    translate(0, -obj.size / 4, 0);
-    emissiveMaterial(255, 0, 0);
-    sphere(obj.size / 15);
-    pop();
-    
-  } else if (obj.subType === 1) {
-    // Dome structure
-    ambientMaterial(obj.color2);
-    emissiveMaterial(red(obj.color2) * 0.3, green(obj.color2) * 0.3, blue(obj.color2) * 0.3);
-    sphere(obj.size / 2, 16, 8);
-    
-    // Base platform
-    push();
-    translate(0, obj.size / 4, 0);
-    ambientMaterial(obj.color1);
-    cylinder(obj.size / 1.5, obj.size / 8);
-    pop();
-    
-    // Entry rings
-    for (let i = 0; i < 3; i++) {
-      push();
-      rotateY((TWO_PI / 3) * i);
-      translate(obj.size / 2, 0, 0);
-      ambientMaterial(obj.color2);
-      torus(obj.size / 10, obj.size / 30);
-      pop();
-    }
-    
-  } else {
-    // Pyramid/Obelisk
-    push();
-    translate(0, obj.size / 3, 0);
-    ambientMaterial(obj.color1);
-    cone(obj.size / 1.5, obj.size * 1.2, 4);
-    
-    // Glowing top
-    translate(0, -obj.size * 0.7, 0);
-    emissiveMaterial(red(obj.color2), green(obj.color2), blue(obj.color2));
-    sphere(obj.size / 8);
-    
-    // Energy beams
-    stroke(obj.color2);
-    strokeWeight(2);
-    for (let i = 0; i < 4; i++) {
-      push();
-      rotateY((TWO_PI / 4) * i);
-      line(0, 0, 0, 0, obj.size / 2, obj.size / 2);
-      pop();
-    }
-    pop();
-  }
+  arpOsc.freq(note);
+  arpOsc.amp(0.08, 0.005);
+  arpOsc.amp(0, 0.08);
+}
+
+function playTechnoLead() {
+  // Stabbing lead synth
+  let leadNotes = [659, 784, 880, 988]; // E5, G5, A5, B5
+  let note = leadNotes[floor(random(leadNotes.length))];
   
-  pop();
+  leadSynth.freq(note);
+  leadSynth.amp(0.15, 0.02);
+  leadSynth.amp(0, 0.4);
+}
+
+function playTechnoPad() {
+  // Dark techno pad chords - E minor
+  let chordRoots = [165, 196, 220, 247]; // E3, G3, A3, B3
+  let root = chordRoots[(beatCounter / 8) % 4];
+  
+  padOsc.freq(root);
+  padOsc.amp(0.1, 1.5);
+  padOsc.amp(0.05, 2);
+}
+
+function playCollisionSound() {
+  // Techno zap/laser sound - sharper and faster
+  let zap = new p5.Oscillator('square');
+  zap.freq(random([523, 659, 784, 880]));
+  
+  reverb.process(zap, 1.5, 1.5);
+  delay.process(zap, 0.25, 0.4, 1800);
+  
+  zap.start();
+  zap.freq(random([262, 330, 392]), 0.15);
+  zap.amp(0.25, 0.01);
+  zap.amp(0, 0.25);
+  
+  setTimeout(() => zap.stop(), 300);
+  
+  // Add a punchy techno hit
+  let hit = new p5.Oscillator('sine');
+  hit.freq(120);
+  hit.start();
+  hit.amp(0.35, 0.005);
+  hit.freq(30, 0.08);
+  hit.amp(0, 0.15);
+  
+  setTimeout(() => hit.stop(), 200);
 }
 
 function windowResized() {
