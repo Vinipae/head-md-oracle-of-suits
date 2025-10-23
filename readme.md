@@ -16,7 +16,4 @@ Team Members :
 - [Luca Correia da Rocha](https://github.com/LucaCDRocha/head-md-oracle-of-suits)
 - [Vincent Paley](https://github.com/Vinipae/head-md-oracle-of-suits)
 
-## Recent fixes (2025-10-23)
 
-- Fixed runtime errors in `code/2025-10-22/Hands/sketch.js` by declaring several missing global arrays and adding safe guards for MediaPipe `detections` when hands are not present. Simplified some per-frame randomness for more coherent visuals.
-	- If you use MediaPipe hands/face modules, ensure `MediaPipeHands.js` or `MediaPipeFace.js` is included and sets the global `detections` variable.
