@@ -12,6 +12,10 @@ function draw() {
   // Digital void background with glitch effect
   drawGlitchBackground();
   
+  // Hide any HTML text elements
+  let elements = document.querySelectorAll('h1, h2, h3, p, div');
+  elements.forEach(el => el.style.display = 'none');
+  
   // ERROR 404 AT FINGERTIPS
   if (detections && detections.multiHandLandmarks) {
     spawnError404FromFingertips();
